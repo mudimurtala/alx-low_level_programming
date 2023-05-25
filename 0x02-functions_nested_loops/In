@@ -1,0 +1,10 @@
+n.h:2:9: error: missing whitespace after the macro name [-Werror]
+    2 | #define MAIN.H
+          |         ^~~~
+	  cc1: all warnings being treated as errorsn.h:2:9: error: missing whitespace after the macro name [-Werror]
+    2 | #define MAIN.H
+          |         ^~~~
+	  cc1: all warnings being treated as errorsn.h:2:9: error: missing whitespace after the macro name [-Werror]
+    2 | #define MAIN.H
+          |         ^~~~
+	  cc1: all warnings being treated as errors
