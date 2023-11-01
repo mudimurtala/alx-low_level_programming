@@ -10,7 +10,7 @@
 
 unsigned int binary_to_uint(const char *b)
 {
-	int mal = 0;
+	unsigned int mal = 0;
 	int gth = strlen(b);
 	int m;
 
