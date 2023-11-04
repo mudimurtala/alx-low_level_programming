@@ -1,122 +1,85 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <errno.h>
-#include <elf.h>
+#include "main.h"
+#define BUF_SIZE 64
+void print_elf_header(uint8_t *buffer);
+int main(int argc, char *argv[]);
+
 /**
-* Prints an error message and exits the program with exit code 98.
-* @param message The error message to print.
-*/
-void print_error(char* message) {
-    fprintf(stderr, "Error: %s\n", message);
-    exit(98);
+ * print_error_and_exit - Print error message to stderr and exit
+ * @exit_code: The exit code
+ * @error_message: The error message to display
+ */
+void print_error_and_exit(int exit_code, const char *error_message)
+{
+	dprintf(STDERR_FILENO, "%s\n", error_message);
+	exit(exit_code);
 }
+
 /**
-* The main function of the program.
-* @param argc The number of command line arguments.
-* @param argv An array of strings containing the command line arguments.
-* @return 0 on success, non-zero on failure.
-*/
-int main(int argc, char** argv) {
+ * print_hex - Print the hex values of a buffer
+ * @buffer: The buffer to print
+ * @size: The size of the buffer
+ */
+void print_hex(uint8_t *buffer, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		printf("%02x ", buffer[i]);
+	printf("\n");
+}
+
+/**
+ * print_elf_header - Print the ELF header information
+ * @buffer: The buffer containing the ELF header
+ */
+void print_elf_header(uint8_t *buffer)
+{
+	printf("ELF Header:\n");
+	printf("  Magic:   ");
+	print_hex(buffer, 16);
+	printf("  Class: ELF%d\n", buffer[4] == 1 ? 32 : 64);
+	printf("  Data:  %s\n", buffer[5] == 1 ?
+		"2's complement, little endian" : "2's complement, big endian");
+	printf("  Version: %d (current)\n", buffer[6]);
+	printf("  OS/ABI:  UNIX - %s\n", buffer[7] == 0 ? "System V" : "Other");
+	printf("  ABI Version: %d\n", buffer[8]);
+	printf("  Type: ");
+	print_hex(&buffer[16], 2);
+	printf("  Entry point address: ");
+	print_hex(&buffer[24], 4);
+}
+
+/**
+ * main - Entry point of the program
+ * @argc: The argument count
+ * @argv: The argument vector
+ * Return: 0 on success, 98 on error
+ */
+int main(int argc, char *argv[])
+{
 	int fd;
-	Elf64_Ehdr header;
-	int i;
+	ssize_t bytes_read;
+	uint8_t buffer[BUF_SIZE];
 
 	if (argc != 2)
-	{
-		print_error("Usage: elf_header elf_filename");
-	}
+		print_error_and_exit(98, "Usage: elf_header elf_filename");
 
 	fd = open(argv[1], O_RDONLY);
 	if (fd == -1)
-	{
-		print_error(strerror(errno));
-	}
+		print_error_and_exit(98, "Error: Can't open file");
 
-	if (read(fd, &header, sizeof(header)) != sizeof(header))
-	{
-		print_error(strerror(errno));
-	}
+	bytes_read = read(fd, buffer, BUF_SIZE);
+	if (bytes_read == -1)
+		print_error_and_exit(98, "Error: Can't read from file");
 
-	if (header.e_ident[EI_MAG0] != ELFMAG0 ||
-	header.e_ident[EI_MAG1] != ELFMAG1 ||
-	header.e_ident[EI_MAG2] != ELFMAG2 ||
-	header.e_ident[EI_MAG3] != ELFMAG3)
-	{
-		print_error("Not an ELF file");
-	}
+	if (bytes_read < BUF_SIZE)
+		print_error_and_exit(98, "Error: Invalid ELF file");
 
-printf("ELF Header:\n");
-printf("Magic:   ");
-for (i = 0; i < EI_NIDENT; i++) {
-printf("%02x ", header.e_ident[i]);
-}
-printf("\n");
-printf("Class:                             ");
-switch (header.e_ident[EI_CLASS]) {
-case ELFCLASS32:
-printf("ELF32\n");
-break;
- ase ELFCLASS64:
-printf("ELF64\n");
-break;
-default:
-printf("Invalid class\n");
-break;
-}
-printf("Data:                              ");
-switch (header.e_ident[EI_DATA]) {
-case ELFDATA2LSB:
-printf("2's complement, little endian\n");
-break;
-case ELFDATA2MSB:
-printf("2's complement, big endian\n");
-break;
-default:
-printf("Invalid data encoding\n");
-break;
-}
- printf("Version:                           %d (current)\n", header.e_ident[EI_VERSION]);
+	print_elf_header(buffer);
 
- printf("OS/ABI:                            ");
- switch (header.e_ident[EI_OSABI]) {
- case ELFOSABI_SYSV:
-printf("UNIX - System V\n");
-break;
- case ELFOSABI_NETBSD:
- printf("UNIX - NetBSD\n");
- break;
- default:
- printf("Other\n");
- break;
- }
+	if (close(fd) == -1)
+		print_error_and_exit(100, "Error: Can't close file descriptor");
 
-    printf("ABI Version:%d\n", header.e_ident[EI_ABIVERSION]);
-printf("Type:");
-switch (header.e_type)
-{
-case ET_NONE:
-printf("NONE (No file type)\n");
-break;
-case ET_REL:
-break;
-case ET_EXEC:
-printf("EXEC (Executable file)\n");
-break;
-case ET_DYN:
-printf("DYN (Shared object file)\n");
-break;
-case ET_CORE:
-printf("CORE (Core file)\n");
-break;
-default:
-printf("Other\n");
-break;
+	return (0);
 }
-printf("Entry point address:%#lx\n", header.e_entry);
-close(fd);
-return (0);
-}
+
